@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillChain - Simple Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .status {
+            background: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            color: #333;
+        }
+        
+        .status-label {
+            font-weight: 500;
+        }
+        
+        .status-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .ok { color: #10b981; }
+        .error { color: #ef4444; }
+        .pending { color: #f59e0b; }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result h3 {
+            color: #166534;
+            margin-bottom: 10px;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #10b981;
+            word-break: break-all;
+            font-size: 13px;
+        }
+        
+        .error-msg {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .error-msg.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 SkillChain Test</h1>
+        <p class="subtitle">Simple testing interface</p>
+        
+        <!-- Status -->
+        <div class="status">
+            <div class="status-item">
+                <span class="status-label">Backend</span>
+                <span class="status-value pending" id="backend-status">Checking...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">IPFS Upload</span>
+                <span class="status-value pending" id="ipfs-status">Ready</span>
+            </div>
+        </div>
+        
+        <!-- Upload Form -->
+        <div class="form-group">
+            <label>Upload Test File</label>
+            <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.pdf">
+        </div>
+        
+        <button onclick="uploadFile()">📤 Upload to IPFS</button>
+        
+        <!-- Result -->
+        <div class="result" id="result">
+            <h3>✅ Upload Successful!</h3>
+            <div class="result-item">
+                <strong>IPFS CID:</strong><br>
+                <span id="cid"></span>
+            </div>
+            <div class="result-item">
+                <strong>File Hash:</strong><br>
+                <span id="hash"></span>
+            </div>
+            <div class="result-item">
+                <strong>File Size:</strong><br>
+                <span id="filesize"></span>
+            </div>
+            <div class="result-item">
+                <strong>Gateway URL:</strong><br>
+                <a id="gatewayLink" target="_blank" href="#"></a>
+            </div>
+        </div>
+        
+        <!-- Error -->
+        <div class="error-msg" id="errorMsg"></div>
+    </div>
+    
+    <script>
+        const BACKEND_URL = 'http://localhost:4000';
+        
+        // Check backend status on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/health`);
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    document.getElementById('backend-status').textContent = '✅ OK';
+                    document.getElementById('backend-status').classList.remove('pending');
+                    document.getElementById('backend-status').classList.add('ok');
+                }
+            } catch (error) {
+                document.getElementById('backend-status').textContent = '❌ Error';
+                document.getElementById('backend-status').classList.remove('pending');
+                document.getElementById('backend-status').classList.add('error');
+                showError('Backend not responding at ' + BACKEND_URL);
+            }
+        });
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+        
+        function hideError() {
+            document.getElementById('errorMsg').classList.remove('show');
+        }
+        
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('Please select a file');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = '⏳ Uploading...';
+            
+            hideError();
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/ipfs/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+                
+                // Show result
+                document.getElementById('cid').textContent = data.ipfsCid;
+                document.getElementById('hash').textContent = data.hash;
+                document.getElementById('filesize').textContent = (data.fileSize / 1024).toFixed(2) + ' KB';
+                
+                const gatewayUrl = `https://gateway.pinata.cloud/ipfs/${data.ipfsCid}`;
+                const link = document.getElementById('gatewayLink');
+                link.href = gatewayUrl;
+                link.textContent = gatewayUrl;
+                
+                document.getElementById('result').classList.add('show');
+                
+            } catch (error) {
+                showError('Upload failed: ' + error.message);
+                document.getElementById('result').classList.remove('show');
+            } finally {
+                button.disabled = false;
+                button.textContent = '📤 Upload to IPFS';
+            }
+        }
+    </script>
+</body>
+</html>
